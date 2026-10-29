@@ -48,13 +48,49 @@ To run directly in this configured project:
 .\.tools\python\python.exe app.py
 ```
 
+## Update an existing Windows 11 installation
+
+1. Close the editor. Make a backup copy of the application folder.
+2. Copy the update files into your existing application folder, replacing matching files. Keep your `.tools`, `.venv`, `.cache`, videos, and exports.
+3. Open PowerShell in that folder and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Setup.ps1
+```
+
+The script uses the same Python as Launch.bat (bundled `.tools` Python first,
+then `.venv`). It installs the tested dependencies, checks them, and runs the
+regression tests. Internet access is needed for installation. If neither Python
+exists, it creates `.venv` using 64-bit Python 3.12 installed via python.org.
+
+4. Double-click **Launch.bat**. Choose `base.en`, enable Whisper and English
+subtitles, and analyze your video again. Review the transcript, then export.
+Enable the English subtitle track in your player, or open the accompanying SRT.
+
+### Why this fixes Whisper
+
+faster-whisper 1.2.1 calls `av.open(..., metadata_errors="ignore")`.
+PyAV 19.0.2 rejects this argument. Its upstream dependency constraint (`av>=11`)
+allowed that incompatible combination. Both dependency files now select
+**faster-whisper 1.2.1 and PyAV 16.0.1**, verified with the real audio decoder.
+No third-party files are patched and no global `av.open` monkey patch is used.
+Use `requirements.txt` for updates; `requirements-lock.txt` records the supplied
+environment with the corrected PyAV version (it is not a Windows-generated lock).
+
 ## Tests and troubleshooting
+
+Setup runs the offline regression suite automatically. To run it again, use your
+application's Python (`.venv\Scripts\python.exe` if there is no bundled Python):
 
 ```powershell
 .\.tools\python\python.exe -m unittest discover -s tests -v
 ```
 
-Tests generate small sample videos inside `.cache/test-output`, check actual FFmpeg export/decode, watermark escaping, 1080p dimensions, subtitle muxing, silence cuts, silent input, original preservation, cancellation, and timeline calculations. They do not need a Whisper model. See `TESTING.md` for checks actually performed in this environment.
+The tests exercise actual faster-whisper audio decoding, mocked model output
+through the English worker, word timestamps, corrected subtitles after cuts and
+speed changes, actual 1080p FFmpeg export with an English selectable subtitle
+track and SRT, original preservation, and cancellation. Tests use temporary files
+under `.cache` and do not download a model. See `TESTING.md` for validation results.
 
 If an operation fails, read the dialog and `.cache/last-error.log`. For a model download failure, retry with internet access; for memory trouble, choose `tiny.en` or `base.en`. If subtitles are missing, enable Whisper and subtitles, analyze again, and check that the transcript contains words. Keep sufficient free disk space on both the project and export drives.
 
